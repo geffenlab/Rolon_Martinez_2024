@@ -533,6 +533,7 @@ def _(
     print("Spike Sort Index tone-responsive shape:", SpikeSortI_toneResp.shape)
     return (
         Clust_Depth_toneResp,
+        Clust_Depth_toneRespOnly,
         PSTH_Laser_norm_masked,
         Rasters_toneResp,
         SpikeSortI_toneResp,
@@ -546,6 +547,7 @@ def _(
         norm_PSTH_On_masked,
         norm_PSTH_On_toneonly_masked,
         toneIndex,
+        toneOnlyRespPSTH,
         toneOnlyRespPSTH_Laser,
         toneRespPSTH,
         toneRespPSTH_Laser,
@@ -592,13 +594,39 @@ def _(
 def _(
     early_evoked_Ind,
     meanLaserOff_masked,
+    meanLaserOff_toneonly_masked,
     meanLaserOn_masked,
+    meanLaserOn_toneonly_masked,
     norm_PSTH_OFF_masked,
+    norm_PSTH_OFF_toneonly_masked,
     norm_PSTH_On_masked,
+    norm_PSTH_On_toneonly_masked,
     np,
+    toneOnlyRespPSTH,
     toneRespPSTH,
 ):
     # Initialize lists to store the results of the difference in mean firing rate laser on - laser off:
+    diff_resp_EarlyOn_toneOnly = []
+    diff_resp_norm_EarlyOn_toneOnly = []
+
+    for cell in range(len(toneOnlyRespPSTH[0][0])):
+        # Calculate the difference between LaserOn and LaserOff
+        # Audrey edited these to have the full length of the tone
+        diff = meanLaserOn_toneonly_masked[early_evoked_Ind, cell].mean(
+            axis=0
+        ) - meanLaserOff_toneonly_masked[early_evoked_Ind, cell].mean(axis=0)
+        diff_resp_EarlyOn_toneOnly.append(diff)
+
+        # Calculate the normalized difference
+        diff_norm = norm_PSTH_On_toneonly_masked[early_evoked_Ind, cell].mean(
+            axis=0
+        ) - norm_PSTH_OFF_toneonly_masked[early_evoked_Ind, cell].mean(axis=0)
+        diff_resp_norm_EarlyOn_toneOnly.append(diff_norm)
+
+    # Convert list to NumPy array for easier processing
+    diff_resp_EarlyOn_array_toneOnly = np.array(diff_resp_EarlyOn_toneOnly)
+    diff_resp_norm_EarlyOn_array_toneOnly = np.array(diff_resp_norm_EarlyOn_toneOnly)
+
     diff_resp_EarlyOn = []
     diff_resp_norm_EarlyOn = []
 
@@ -632,7 +660,9 @@ def _(
         diff_Sorted_facil,
         diff_Sorted_supp,
         diff_resp_EarlyOn_array,
+        diff_resp_EarlyOn_array_toneOnly,
         diff_resp_norm_EarlyOn_array,
+        diff_resp_norm_EarlyOn_array_toneOnly,
         facilitated_Ind,
         suppressed_Ind,
     )
@@ -717,6 +747,7 @@ def _(
 @app.cell
 def _(
     Clust_Depth_toneResp,
+    Clust_Depth_toneRespOnly,
     diff_Sorted_facil,
     diff_Sorted_supp,
     facilitated_depths,
@@ -724,6 +755,7 @@ def _(
     suppressed_depths,
 ):
     depths_numeric = np.array([float(x[0]) for x in Clust_Depth_toneResp])
+    depths_numeric_toneOnly = np.array([float(x[0]) for x in Clust_Depth_toneRespOnly])
     depths_numeric_facil = np.array([float(x[0]) for x in facilitated_depths])
     depths_numeric_supp = np.array([float(x[0]) for x in suppressed_depths])
 
@@ -800,6 +832,7 @@ def _(
         depths_numeric,
         depths_numeric_facil,
         depths_numeric_supp,
+        depths_numeric_toneOnly,
         diff_Sorted_facil_norm,
         diff_Sorted_supp_norm,
         facil_agg,
@@ -2342,6 +2375,7 @@ def _(
 def _(
     cellType,
     diff_resp_norm_EarlyOn_array,
+    diff_resp_norm_EarlyOn_array_toneOnly,
     facilitated_Ind,
     fig_dir_time,
     new_black,
@@ -2372,7 +2406,15 @@ def _(
             color="#85000c",
             edgecolor="#85000c",
         )
-
+        # Non-sig hist
+        ax.hist(
+            np.clip(diff_resp_norm_EarlyOn_array_toneOnly, -1.5, 5.0),
+            bins=bins,
+            color="#787586",
+            edgecolor="#787586",
+            alpha = 0.8,
+        )
+    
         # Simplifying axvline and labels in a compact way
         ax.axvline(x=0, color=new_black, linestyle="--")
         ax.set(
@@ -2814,11 +2856,13 @@ def _(
     depths_numeric,
     depths_numeric_facil,
     depths_numeric_supp,
+    depths_numeric_toneOnly,
     diff_Sorted_facil,
     diff_Sorted_facil_norm,
     diff_Sorted_supp,
     diff_Sorted_supp_norm,
     diff_resp_EarlyOn_array,
+    diff_resp_EarlyOn_array_toneOnly,
     facil_agg,
     facil_counts,
     facil_sum,
@@ -2851,6 +2895,13 @@ def _(
 
         # Plot 2: Scatter plot with categories
         ax = axs[0, 1]
+        ax.scatter(
+            diff_resp_EarlyOn_array_toneOnly,
+            depths_numeric_toneOnly,
+            color="#787586",
+            s=10,
+            label="Non-Significant",
+        )
         ax.scatter(
             diff_Sorted_facil,
             depths_numeric_facil,
